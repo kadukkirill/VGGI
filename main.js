@@ -92,24 +92,21 @@ function CreateSurfaceData() {
     let i = 0;
     let j = 0;
     let step = 0.1;
-    while (i < Math.PI * 2) {
-        while (j < Math.PI) {
-            let v = cassini(i, j)
-            vertexList.push(v.x, v.y, v.z);
-            j += step;
-        }
-        j = 0;
-        i += step
-    }
-    i = 0;
-    j = 0;
     while (j < Math.PI) {
         while (i < Math.PI * 2) {
-            let v = cassini(i, j)
-            vertexList.push(v.x, v.y, v.z);
+            let v1 = cassini(i, j)
+            let v2 = cassini(i + step, j)
+            let v3 = cassini(i, j + step)
+            let v4 = cassini(i + step, j + step)
+            vertexList.push(v1.x, v1.y, v1.z);
+            vertexList.push(v2.x, v2.y, v2.z);
+            vertexList.push(v3.x, v3.y, v3.z);
+            vertexList.push(v2.x, v2.y, v2.z);
+            vertexList.push(v4.x, v4.y, v4.z);
+            vertexList.push(v3.x, v3.y, v3.z);
             i += step;
         }
-        i=0
+        i = 0
         j += step;
     }
 
@@ -125,7 +122,7 @@ function cassini(u, z1) {
 
 function r(u, z) {
     let a = 1.0;
-    let b = a+z;
+    let b = a + z;
     return (a ** 2 * Math.cos(2 * u) + Math.sqrt((b ** 4 - a ** 4) + a ** 4 * Math.cos(2 * u) ** 2));
 }
 
