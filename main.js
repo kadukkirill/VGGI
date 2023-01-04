@@ -14,11 +14,20 @@ function deg2rad(angle) {
 function Model(name) {
     this.name = name;
     this.iVertexBuffer = gl.createBuffer();
+    this.iNormalBuffer = gl.createBuffer();
     this.count = 0;
 
     this.BufferData = function (vertices) {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
+
+        this.count = vertices.length / 3;
+    }
+
+    this.NormalBufferData = function (vertices) {
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
 
         this.count = vertices.length / 3;
@@ -30,7 +39,11 @@ function Model(name) {
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
 
-        gl.drawArrays(gl.LINE_STRIP, 0, this.count);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribNormal, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribNormal);
+
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
     }
 }
 
@@ -43,10 +56,13 @@ function ShaderProgram(name, program) {
 
     // Location of the attribute variable in the shader program.
     this.iAttribVertex = -1;
+    this.iAttribNormal = -1;
     // Location of the uniform specifying a color for the primitive.
     this.iColor = -1;
     // Location of the uniform matrix representing the combined transformation.
     this.iModelViewProjectionMatrix = -1;
+    this.iNormalMatrix = -1;
+    this.iLightVector = -1;
 
     this.Use = function () {
         gl.useProgram(this.prog);
@@ -63,7 +79,7 @@ function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     /* Set the values of the projection transformation */
-    let projection = m4.perspective(Math.PI / 8, 1, 8, 12);
+    let projection = m4.orthographic(-4, 4, -4, 4, 0, 4 * 4);
 
     /* Get the view matrix from the SimpleRotator object.*/
     let modelView = spaceball.getViewMatrix();
@@ -114,9 +130,9 @@ function CreateSurfaceData() {
 }
 
 function cassini(u, z1) {
-    let x = 0.3 * Math.sqrt(r(u, z1)) * Math.cos(u)
-    let y = 0.3 * Math.sqrt(r(u, z1)) * Math.sin(u)
-    let z = 0.3 * z1;
+    let x = 0.6 * Math.sqrt(r(u, z1)) * Math.cos(u)
+    let y = 0.6 * Math.sqrt(r(u, z1)) * Math.sin(u)
+    let z = 0.6 * z1;
     return { x: x, y: y, z: z }
 }
 
