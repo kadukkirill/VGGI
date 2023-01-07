@@ -4,6 +4,9 @@ let gl;                         // The webgl context.
 let surface;                    // A surface model
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
+let sphere;
+let userPointCoord;
+let userScaleFactor;
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -14,8 +17,9 @@ function deg2rad(angle) {
 function Model(name) {
     this.name = name;
     this.iVertexBuffer = gl.createBuffer();
-    this.iNormalBuffer = gl.createBuffer();
+    this.iTextureBuffer = gl.createBuffer();
     this.count = 0;
+    this.countT = 0;
 
     this.BufferData = function (vertices) {
 
@@ -25,12 +29,12 @@ function Model(name) {
         this.count = vertices.length / 3;
     }
 
-    this.NormalBufferData = function (vertices) {
+    this.TextureBufferData = function (points) {
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STREAM_DRAW);
 
-        this.count = vertices.length / 3;
+        this.countT = points.length / 2;
     }
 
     this.Draw = function () {
@@ -39,9 +43,9 @@ function Model(name) {
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribNormal, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribNormal);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribTexture, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribTexture);
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
     }
@@ -56,13 +60,12 @@ function ShaderProgram(name, program) {
 
     // Location of the attribute variable in the shader program.
     this.iAttribVertex = -1;
-    this.iAttribNormal = -1;
-    // Location of the uniform specifying a color for the primitive.
-    this.iColor = -1;
+    this.iAttribTexture = -1;
     // Location of the uniform matrix representing the combined transformation.
     this.iModelViewProjectionMatrix = -1;
-    this.iNormalMatrix = -1;
-    this.iLightVector = -1;
+
+
+    this.iTMU = -1;
 
     this.Use = function () {
         gl.useProgram(this.prog);
@@ -79,6 +82,7 @@ function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     /* Set the values of the projection transformation */
+    // let projection = m4.perspective(Math.PI / 8, 1, 8, 12);
     let projection = m4.orthographic(-4, 4, -4, 4, 0, 4 * 4);
 
     /* Get the view matrix from the SimpleRotator object.*/
@@ -95,23 +99,9 @@ function draw() {
     let modelViewProjection = m4.multiply(projection, matAccum1);
 
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection);
-
-    let modelviewInv = new Float32Array(16);
-    let normalmatrix = new Float32Array(16);
-    mat4Invert(modelViewProjection, modelviewInv);
-    mat4Transpose(modelviewInv, normalmatrix);
-
-    gl.uniformMatrix4fv(shProgram.iNormalMatrix, false, normalmatrix);
-
-    /* Draw the six faces of a cube, with different colors. */
-    gl.uniform4fv(shProgram.iColor, [1, 1, 0, 1]);
-    gl.uniform3fv(shProgram.iLightVector, [0, -1.5 + 3.0 * Math.cos(Date.now() * 0.001), Math.pow(-1.5 + 3.0 * Math.cos(Date.now() * 0.001), 2)]);
-
-    surface.Draw();
-}
-function anim(){
-    draw()
-    window.requestAnimationFrame(anim);
+    gl.uniform1i(shProgram.iTMU, 0);
+    gl.enable(gl.TEXTURE_2D);
+surface.Draw();
 }
 
 function CreateSurfaceData() {
@@ -141,38 +131,38 @@ function CreateSurfaceData() {
     return vertexList;
 }
 
-function CreateNormalData() {
-    let normalsList = [];
+function CreateTextureData() {
+    let texCoordList = [];
     let i = 0;
     let j = 0;
-    let step = 0.1
+    let step = 0.1;
     while (i <= Math.PI) {
         while (j <= Math.PI * 2) {
-            let v1 = cassini(i, j)
-            let v2 = cassini(i + step, j)
-            let v3 = cassini(i, j + step)
-            let v4 = cassini(i + step, j + step)
-            let v21 = { x: v2.x - v1.x, y: v2.y - v1.y, z: v2.z - v1.z }
-            let v31 = { x: v3.x - v1.x, y: v3.y - v1.y, z: v3.z - v1.z }
-            let n1 = vec3Cross(v21, v31);
-            vec3Normalize(n1);
-            normalsList.push(n1.x, n1.y, n1.z);
-            normalsList.push(n1.x, n1.y, n1.z);
-            normalsList.push(n1.x, n1.y, n1.z);
-            let v42 = { x: v4.x - v2.x, y: v4.y - v2.y, z: v4.z - v2.z };
-            let v32 = { x: v3.x - v2.x, y: v3.y - v2.y, z: v3.z - v2.z };
-            let n2 = vec3Cross(v42, v32);
-            vec3Normalize(n2);
-            normalsList.push(n2.x, n2.y, n2.z);
-            normalsList.push(n2.x, n2.y, n2.z);
-            normalsList.push(n2.x, n2.y, n2.z);
-            j += step
+            let u = map(i, 0, Math.PI, 0, 1);
+            let v = map(j, 0, Math.PI * 2, 0, 1);
+            texCoordList.push(u, v);
+            u = map(i + step, 0, Math.PI, 0, 1);
+            texCoordList.push(u, v);
+            u = map(i, 0, Math.PI, 0, 1);
+            v = map(j + step, 0, Math.PI * 2, 0, 1);
+            texCoordList.push(u, v);
+            u = map(i + step, 0, Math.PI, 0, 1);
+            v = map(j, 0, Math.PI * 2, 0, 1);
+            texCoordList.push(u, v);
+            u = map(i + step, 0, Math.PI, 0, 1);
+            v = map(j + step, 0, Math.PI * 2, 0, 1);
+            texCoordList.push(u, v);
+            u = map(i, 0, Math.PI, 0, 1);
+            v = map(j + step, 0, Math.PI * 2, 0, 1);
+            texCoordList.push(u, v);
+            j += step;
         }
-        j = 0;
+        j = 0
         i += step;
     }
-    return normalsList;
+    return texCoordList;
 }
+
 
 function cassini(u, z1) {
     let x = 0.6 * Math.sqrt(r(u, z1)) * Math.cos(u)
@@ -187,7 +177,6 @@ function r(u, z) {
     return (a ** 2 * Math.cos(2 * u) + Math.sqrt((b ** 4 - a ** 4) + a ** 4 * Math.cos(2 * u) ** 2));
 }
 
-
 /* Initialize the WebGL context. Called from init() */
 function initGL() {
     let prog = createProgram(gl, vertexShaderSource, fragmentShaderSource);
@@ -196,15 +185,14 @@ function initGL() {
     shProgram.Use();
 
     shProgram.iAttribVertex = gl.getAttribLocation(prog, "vertex");
-    shProgram.iAttribNormal = gl.getAttribLocation(prog, "normal");
+    shProgram.iAttribTexture = gl.getAttribLocation(prog, "texture");
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
-    shProgram.iNormalMatrix = gl.getUniformLocation(prog, "NormalMatrix");
-    shProgram.iColor = gl.getUniformLocation(prog, "color");
-    shProgram.iLightVector = gl.getUniformLocation(prog, "light");
+    shProgram.iTMU = gl.getUniformLocation(prog, 'tmu');
 
     surface = new Model('Surface');
     surface.BufferData(CreateSurfaceData());
-    surface.NormalBufferData(CreateNormalData());
+    LoadTexture();
+    surface.TextureBufferData(CreateTextureData());
 
     gl.enable(gl.DEPTH_TEST);
 }
@@ -246,16 +234,22 @@ function createProgram(gl, vShader, fShader) {
  * initialization function that will be called when the page has loaded
  */
 function init() {
+    userPointCoord = { x: 0.5, y: 0.5 }
+    userScaleFactor = 1.0;
     let canvas;
     try {
-        canvas = document.getElementById("webglcanvas");
+        let resolution = Math.min(window.innerHeight, window.innerWidth);
+        canvas = document.querySelector('canvas');
         gl = canvas.getContext("webgl");
+        canvas.width = resolution;
+        canvas.height = resolution;
+        gl.viewport(0, 0, resolution, resolution);
         if (!gl) {
             throw "Browser does not support WebGL";
         }
     }
     catch (e) {
-        document.getElementById("canvas-holder").innerHTML =
+        document.querySelector('"canvas-holder"').innerHTML =
             "<p>Sorry, could not get a WebGL graphics context.</p>";
         return;
     }
@@ -270,7 +264,13 @@ function init() {
 
     spaceball = new TrackballRotator(canvas, draw, 0);
 
-    window.requestAnimationFrame(anim);
+    draw();
+}
+
+function map(val, f1, t1, f2, t2) {
+    let m;
+    m = (val - f1) * (t2 - f2) / (t1 - f1) + f2
+    return Math.min(Math.max(m, f2), t2);
 }
 
 function vec3Cross(a, b) {
@@ -334,4 +334,29 @@ function mat4Invert(m, inverse) {
     det = 1.0 / det;
     for (var i = 0; i < 16; i++) inverse[i] = inv[i] * det;
     return true;
+}
+
+function LoadTexture() {
+    let texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, );
+
+    const image = new Image();
+    image.crossOrigin = 'anonymus';
+    image.src = "";
+    image.onload = () => {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            image
+        );
+        draw()
+    }
 }
