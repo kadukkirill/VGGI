@@ -67,6 +67,10 @@ function ShaderProgram(name, program) {
 
     this.iTMU = -1;
 
+    this.iUserPoint = -1;
+    this.iScale = 1.0;
+    this.iUP = -1;
+
     this.Use = function () {
         gl.useProgram(this.prog);
     }
@@ -101,7 +105,12 @@ function draw() {
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection);
     gl.uniform1i(shProgram.iTMU, 0);
     gl.enable(gl.TEXTURE_2D);
-surface.Draw();
+    gl.uniform1f(shProgram.iScale, userScaleFactor)
+    surface.Draw();
+    gl.uniform1f(shProgram.iScale, -1.0)
+    let trS = cassini(map(userPointCoord.x,0,1,0,Math.PI),map(userPointCoord.y,0,1,0,Math.PI*2))
+    gl.uniform3fv(shProgram.iUP, [trS.x, trS.y, trS.z]);
+    sphere.DrawSphere();
 }
 
 function CreateSurfaceData() {
@@ -188,6 +197,9 @@ function initGL() {
     shProgram.iAttribTexture = gl.getAttribLocation(prog, "texture");
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
     shProgram.iTMU = gl.getUniformLocation(prog, 'tmu');
+    shProgram.iUserPoint = gl.getUniformLocation(prog, 'userPoint');
+    shProgram.iScale = gl.getUniformLocation(prog, 'scl');
+    shProgram.iUP = gl.getUniformLocation(prog, 'translateUP');
 
     surface = new Model('Surface');
     surface.BufferData(CreateSurfaceData());
@@ -360,3 +372,28 @@ function LoadTexture() {
         draw()
     }
 }
+
+window.onkeydown = (e) => {
+    switch (e.keyCode) {
+        case 87:
+            userPointCoord.x -= 0.01;
+            break;
+        case 83:
+            userPointCoord.x += 0.01;
+            break;
+        case 65:
+            userPointCoord.y += 0.01;
+            break;
+        case 68:
+            userPointCoord.y -= 0.01;
+            break;
+    }
+    userPointCoord.x = Math.max(0.001, Math.min(userPointCoord.x, 0.999))
+    userPointCoord.y = Math.max(0.001, Math.min(userPointCoord.y, 0.999))
+    draw();
+}
+
+onmousemove = (e) => {
+    userScaleFactor = map(e.clientX, 0, window.outerWidth, 0.1, 10.0)
+    draw()
+};
