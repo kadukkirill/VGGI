@@ -49,6 +49,13 @@ function Model(name) {
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
     }
+
+    this.DrawSphere = function () {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribVertex);
+        gl.drawArrays(gl.LINE_STRIP, 0, this.count);
+    }
 }
 
 
@@ -186,6 +193,29 @@ function r(u, z) {
     return (a ** 2 * Math.cos(2 * u) + Math.sqrt((b ** 4 - a ** 4) + a ** 4 * Math.cos(2 * u) ** 2));
 }
 
+function CreateSphereSurface(r = 0.1) {
+    let vertexList = [];
+    let lon = -Math.PI;
+    let lat = -Math.PI * 0.5;
+    while (lon < Math.PI) {
+        while (lat < Math.PI * 0.5) {
+            let v1 = sphereSurfaceData(r, lon, lat);
+            vertexList.push(v1.x, v1.y, v1.z);
+            lat += 0.05;
+        }
+        lat = -Math.PI * 0.5
+        lon += 0.05;
+    }
+    return vertexList;
+}
+
+function sphereSurfaceData(r, u, v) {
+    let x = r * Math.sin(u) * Math.cos(v);
+    let y = r * Math.sin(u) * Math.sin(v);
+    let z = r * Math.cos(u);
+    return { x: x, y: y, z: z };
+}
+
 /* Initialize the WebGL context. Called from init() */
 function initGL() {
     let prog = createProgram(gl, vertexShaderSource, fragmentShaderSource);
@@ -205,6 +235,8 @@ function initGL() {
     surface.BufferData(CreateSurfaceData());
     LoadTexture();
     surface.TextureBufferData(CreateTextureData());
+    sphere = new Model('Sphere');
+    sphere.BufferData(CreateSphereSurface())
 
     gl.enable(gl.DEPTH_TEST);
 }
